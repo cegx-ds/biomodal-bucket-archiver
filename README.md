@@ -18,11 +18,17 @@ This Cloud Function automatically archives Google Cloud Storage buckets older th
 ## Prerequisites
 
 1. Google Cloud SDK installed and configured
-2. Service account with appropriate IAM permissions:
+2. Your user account needs these IAM permissions:
+   - Cloud Functions Admin (to deploy functions)
+   - Cloud Scheduler Admin (to create scheduler jobs)
+   - Service Account User role on the service account `sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com`
+3. Service account `sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com` needs:
    - Storage Admin on all target projects
-   - Cloud Functions Admin
-   - Cloud Scheduler Admin
-3. Access to `prj-platform-tools-prod` project
+4. Access to `prj-platform-tools-prod` project
+5. Required Google Cloud APIs (will be prompted to enable during first deployment):
+   - Cloud Functions API (`cloudfunctions.googleapis.com`)
+   - Cloud Build API (`cloudbuild.googleapis.com`)
+   - Cloud Scheduler API (`cloudscheduler.googleapis.com`)
 
 ## Configuration
 
@@ -68,6 +74,35 @@ To update configuration without redeploying the function, modify the files in GC
 ## Deployment
 
 ### Initial Deployment
+
+**Note:** On first deployment, you will be prompted to enable required APIs if they're not already enabled:
+
+- Cloud Functions API (`cloudfunctions.googleapis.com`)
+- Cloud Build API (`cloudbuild.googleapis.com`)
+
+Answer `y` when prompted. This is a one-time setup and may take a few minutes.
+
+**Important:** If you see a warning about the Cloud Build service account missing the `roles/cloudbuild.builds.builder` role, run the following command (replace the project ID and service account number if different):
+
+```bash
+gcloud projects add-iam-policy-binding prj-platform-tools-prod \
+  --member=serviceAccount:858243249399-compute@developer.gserviceaccount.com \
+  --role=roles/cloudbuild.builds.builder
+```
+
+For more information, see: [Cloud Functions Troubleshooting](https://cloud.google.com/functions/docs/troubleshooting#build-service-account)
+
+**Important:** If you see an error about missing `iam.serviceaccounts.actAs` permission, you need the Service Account User role on the service account. Have a project admin run:
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com \
+  --member=user:YOUR_EMAIL@example.com \
+  --role=roles/iam.serviceAccountUser \
+  --project=prj-biomodal-project-factory
+```
+
+Replace `YOUR_EMAIL@example.com` with your Google Cloud account email. Note: The `--project` flag is required because the service account exists in the `prj-biomodal-project-factory` project.
 
 1. **Deploy the function and upload configuration:**
 
