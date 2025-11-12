@@ -5,7 +5,7 @@ PROJECT_ID="prj-platform-tools-prod"
 FUNCTION_NAME="archive-storage"
 REGION="europe-west2"
 JOB_NAME="weekly-bucket-archiver"
-SCHEDULE="0 2 * * 1"  # Every Monday at 2 AM UTC
+SCHEDULE="0 2 * * 0"  # Every Sunday at 2 AM UTC
 SERVICE_ACCOUNT="sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com"
 
 # Check if we should remove first
@@ -34,7 +34,7 @@ gcloud scheduler jobs create http "$JOB_NAME" \
   --time-zone="UTC"
 
 echo "Cloud Scheduler job '$JOB_NAME' created successfully!"
-echo "Schedule: Every Monday at 2 AM UTC"
+echo "Schedule: Every Sunday at 2 AM UTC"
 echo "Next run will be: $(gcloud scheduler jobs describe $JOB_NAME --location=$REGION --format='value(scheduleTime)' --project=$PROJECT_ID)"
 echo ""
 echo "To redeploy (remove and create fresh), run: ./create_scheduler.sh --redeploy"

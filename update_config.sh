@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration bucket (change this to your bucket name)
-CONFIG_BUCKET="biomodal-bucket-archiver-config"
+CONFIG_BUCKET="biomodal-bucket-archiver-configs"
 
 if [ $# -eq 0 ]; then
     echo "Usage: $0 [projects|exclude_buckets|both]"
@@ -14,18 +14,18 @@ UPDATE_TYPE="$1"
 case "$UPDATE_TYPE" in
     "projects")
         echo "Updating projects configuration..."
-        gsutil cp config/projects.json "gs://$CONFIG_BUCKET/archive_config/"
+        gsutil cp config/projects.json "gs://$CONFIG_BUCKET/config/"
         echo "Projects configuration updated!"
         ;;
     "exclude_buckets")
         echo "Updating exclude buckets configuration..."
-        gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/archive_config/"
+        gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/config/"
         echo "Exclude buckets configuration updated!"
         ;;
     "both")
         echo "Updating all configuration files..."
-        gsutil cp config/projects.json "gs://$CONFIG_BUCKET/archive_config/"
-        gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/archive_config/"
+        gsutil cp config/projects.json "gs://$CONFIG_BUCKET/config/"
+        gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/config/"
         echo "All configuration files updated!"
         ;;
     *)

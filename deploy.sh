@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration bucket (change this to your bucket name)
-CONFIG_BUCKET="biomodal-bucket-archiver-config"
+CONFIG_BUCKET="biomodal-bucket-archiver-configs"
 PROJECT_ID="prj-platform-tools-prod"
 FUNCTION_NAME="archive-storage"
 REGION="europe-west2"
@@ -23,8 +23,8 @@ gsutil mb -p "$PROJECT_ID" "gs://$CONFIG_BUCKET" 2>/dev/null || echo "Bucket alr
 
 # Upload configuration files
 echo "Uploading configuration files..."
-gsutil cp config/projects.json "gs://$CONFIG_BUCKET/archive_config/"
-gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/archive_config/"
+gsutil cp config/projects.json "gs://$CONFIG_BUCKET/config/"
+gsutil cp config/exclude_buckets.json "gs://$CONFIG_BUCKET/config/"
 
 echo "Configuration uploaded successfully!"
 

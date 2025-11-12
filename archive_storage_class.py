@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 DAYS_TO_WAIT = int(os.environ.get('DAYS_TO_WAIT', '180'))
 
 # Configuration bucket for storing project lists and exclusions
-CONFIG_BUCKET = os.environ.get('CONFIG_BUCKET', 'biomodal-bucket-archiver-config')
+CONFIG_BUCKET = os.environ.get('CONFIG_BUCKET', 'biomodal-bucket-archiver-configs')
 
 def load_config_from_gcs():
     """Load configuration from GCS bucket."""
@@ -35,110 +35,45 @@ def load_config_from_gcs():
         bucket = client.bucket(CONFIG_BUCKET)
 
         # Load projects list
-        projects_blob = bucket.blob('archive_config/projects.json')
-        projects = json.loads(projects_blob.download_as_text()) if projects_blob.exists() else get_default_projects()
+        projects_blob = bucket.blob('config/projects.json')
+        if not projects_blob.exists():
+            logger.error(f"Missing required config: config/projects.json in GCS bucket '{CONFIG_BUCKET}'.")
+            raise FileNotFoundError(f"Required config file 'projects.json' not found in GCS bucket '{CONFIG_BUCKET}'.")
+        projects = json.loads(projects_blob.download_as_text())
 
         # Load exclude buckets list
-        exclude_blob = bucket.blob('archive_config/exclude_buckets.json')
-        exclude_buckets = json.loads(exclude_blob.download_as_text()) if exclude_blob.exists() else get_default_exclude_buckets()
+        exclude_blob = bucket.blob('config/exclude_buckets.json')
+        if not exclude_blob.exists():
+            logger.error(f"Missing required config: config/exclude_buckets.json in GCS bucket '{CONFIG_BUCKET}'.")
+            raise FileNotFoundError(f"Required config file 'exclude_buckets.json' not found in GCS bucket '{CONFIG_BUCKET}'.")
+        exclude_buckets = json.loads(exclude_blob.download_as_text())
 
-        logger.info(f"Loaded config from GCS: {len(projects)} projects, {len(exclude_buckets)} excluded buckets")
+        logger.info(f"Loaded config from GCS bucket '{CONFIG_BUCKET}': {len(projects)} projects, {len(exclude_buckets)} excluded buckets")
         return projects, exclude_buckets
 
     except Exception as e:
-        logger.warning(f"Failed to load config from GCS: {e}. Using defaults.")
-        return get_default_projects(), get_default_exclude_buckets()
+        logger.error(f"Failed to load config from GCS bucket '{CONFIG_BUCKET}': {e}. Exiting.")
+        raise
 
 def get_default_projects():
     """Default project list as fallback, loaded from local config file."""
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'projects.json')
     try:
-        config_path = os.path.join(os.path.dirname(__file__), 'config', 'projects.json')
         with open(config_path, 'r') as f:
             return json.load(f)
     except Exception as e:
-        logger.warning(f"Failed to load local projects config: {e}. Using hardcoded fallback.")
-        return [
-            "cegx-nextflow",
-            "prj-biomodal-castor-5381",
-            "prj-biomodal-chimera-internal",
-            "prj-biomodal-chiron",
-            "prj-biomodal-field-escalations",
-            "prj-biomodal-forte",
-            "prj-biomodal-kobold",
-            "prj-biomodal-marketing",
-            "prj-biomodal-operations",
-            "prj-biomodal-biomodal-bfx",
-            "prj-biomodal-swe-dev",
-            "prj-biomodal-swe-test",
-            "prj-biomodal-commercial",
-        ]
+        logger.error(f"Required local config file 'projects.json' not found or could not be loaded: {e}")
+        raise FileNotFoundError("Required local config file 'projects.json' not found or could not be loaded.")
 
 def get_default_exclude_buckets():
     """Default exclude buckets list as fallback, loaded from local config file."""
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'exclude_buckets.json')
     try:
-        config_path = os.path.join(os.path.dirname(__file__), 'config', 'exclude_buckets.json')
         with open(config_path, 'r') as f:
             return json.load(f)
     except Exception as e:
-        logger.warning(f"Failed to load local exclude buckets config: {e}. Using hardcoded fallback.")
-        return [
-            "cegx-runcrc",
-            "cegx-run1808",
-            "cegx-run1036",
-            "cegx-run1231",
-            "cegx-run1333",
-            "cegx-run1380",
-            "cegx-run1381",
-            "cegx-run1386",
-            "cegx-run1314",
-            "cegx-run1336",
-            "cegx-run1392",
-            "cegx-run1442",
-            "cegx-run1407",
-            "cegx-run1412",
-            "cegx-run1420",
-            "cegx-run1445",
-            "cegx-run1461",
-            "cegx-run1470",
-            "cegx-run1485",
-            "cegx-run1595",
-            "cegx-run1530",
-            "cegx-run1532",
-            "cegx-run1546",
-            "cegx-run1522",
-            "cegx-run1588",
-            "cegx-run1616",
-            "cegx-run1699",
-            "cegx-run1451",
-            "cegx-run1566",
-            "cegx-run1578",
-            "cegx-run1618",
-            "cegx-run1634",
-            "cegx-run1694",
-            "cegx-run1744",
-            "cegx-run1781",
-            "cegx-run1784",
-            "cegx-runsc",
-            "cegx-runabc",
-            "cegx-runxyz",
-            "cegx-tower",
-            "cegx-tower-doubleshot",
-            "customer-metrics-upload-cegx-nextflow",
-            "artifacts.cegx-nextflow.appspot.com",
-            "asia.artifacts.cegx-nextflow.appspot.com",
-            "duet_functional-tests",
-            "duet_performance-tests",
-            "duet_regression-tests",
-            "eleni-nf",
-            "methylseq2_regression-tests",
-            "project-denver",
-            "robcrawford-cli-vm",
-            "nathanw-nextflow",
-            "max-nextflow-vm",
-            "max-w-nextflow-vm",
-            "10830",
-            "bs2gcp-cloud-functions",
-        ]
+        logger.error(f"Required local config file 'exclude_buckets.json' not found or could not be loaded: {e}")
+        raise FileNotFoundError("Required local config file 'exclude_buckets.json' not found or could not be loaded.")
 
 # Load configuration at startup
 projects, storage_class_exclude_buckets = load_config_from_gcs()
@@ -246,7 +181,9 @@ def change_bucket_storage_class(bucket: storage.Bucket) -> bool:
                 failed_blobs = sum(1 for result in results if not result)
 
             if failed_blobs > 0:
-                logger.warning(f"Failed to update {failed_blobs} blobs in bucket '{bucket.name}'")
+                error_msg = f"Failed to update {failed_blobs} blobs in bucket '{bucket.name}'. Exiting."
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
 
             # Finally, update the storage class of the bucket to ARCHIVE
             bucket.storage_class = constants.ARCHIVE_STORAGE_CLASS
@@ -374,5 +311,4 @@ def find_all_buckets() -> None:
 
 
 if __name__ == "__main__":
-    # For local testing
     find_all_buckets()

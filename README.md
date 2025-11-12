@@ -26,45 +26,31 @@ This Cloud Function automatically archives Google Cloud Storage buckets older th
 
 ## Configuration
 
-Configuration is managed through JSON files that can be stored in multiple locations with a fallback hierarchy:
+Configuration is managed through JSON files stored in a Google Cloud Storage (GCS) bucket. **Both configuration files must exist in the specified bucket. If either file is missing or cannot be loaded, the process will raise an error and exit. No fallback to local files or hardcoded defaults will occur.**
 
-1. **Primary**: GCS bucket `biomodal-bucket-archiver-config` (loaded at runtime)
-2. **Secondary**: Local `config/` directory (used during deployment and as fallback)
-3. **Tertiary**: Hardcoded defaults in the code (final fallback)
+### Required Configuration Files in GCS
 
-### Configuration Files
+- `config/projects.json`: List of GCP project IDs to scan for buckets
+- `config/exclude_buckets.json`: List of bucket names to exclude from archiving
 
-#### `config/projects.json`
+**Both files must be present in the bucket specified by the `CONFIG_BUCKET` environment variable (default: `biomodal-bucket-archiver-configs`).**
 
-List of GCP project IDs to scan for buckets:
+Example bucket structure:
 
-```json
-[
-    "cegx-nextflow",
-    "prj-biomodal-castor-5381",
-    ...
-]
+```text
+gs://<CONFIG_BUCKET>/config/projects.json
+gs://<CONFIG_BUCKET>/config/exclude_buckets.json
 ```
 
-#### `config/exclude_buckets.json`
-
-List of bucket names to exclude from archiving:
-
-```json
-[
-    "cegx-runcrc",
-    "cegx-run1808",
-    ...
-]
-```
+If either file is missing, the function will log an error including the bucket name and exit immediately.
 
 ### GCS Configuration Bucket
 
-The Cloud Function loads configuration from the `biomodal-bucket-archiver-config` GCS bucket:
+The Cloud Function loads configuration from the `biomodal-bucket-archiver-configs` GCS bucket:
 
-- **Bucket location**: `gs://biomodal-bucket-archiver-config/`
-- **Projects list**: `gs://biomodal-bucket-archiver-config/archive_config/projects.json`
-- **Exclusions list**: `gs://biomodal-bucket-archiver-config/archive_config/exclude_buckets.json`
+- **Bucket location**: `gs://biomodal-bucket-archiver-configs/`
+- **Projects list**: `gs://biomodal-bucket-archiver-configs/config/projects.json`
+- **Exclusions list**: `gs://biomodal-bucket-archiver-configs/config/exclude_buckets.json`
 
 The deployment script automatically:
 
@@ -76,7 +62,7 @@ To update configuration without redeploying the function, modify the files in GC
 
 ## Environment Variables
 
-- `CONFIG_BUCKET`: GCS bucket storing configuration files (default: `biomodal-bucket-archiver-config`)
+- `CONFIG_BUCKET`: GCS bucket storing configuration files (default: `biomodal-bucket-archiver-configs`)
 - `DAYS_TO_WAIT`: Days before archiving buckets (default: `180`)
 
 ## Deployment
@@ -193,10 +179,9 @@ bucket_archiver/
 ## How It Works
 
 1. **Configuration Loading**:
-   - Attempts to load configuration from GCS bucket `biomodal-bucket-archiver-config`
-   - Looks for `archive_config/projects.json` and `archive_config/exclude_buckets.json`
-   - Falls back to local `config/*.json` files if GCS fails
-   - Uses hardcoded defaults as final fallback
+   - Loads configuration from GCS bucket specified by `CONFIG_BUCKET`
+   - Requires both `config/projects.json` and `config/exclude_buckets.json` to exist
+   - If either file is missing, the process raises an error and exits
 
 2. **Project Processing**:
    - Iterates through each configured project
@@ -231,3 +216,4 @@ bucket_archiver/
 - **Memory issues**: Function uses 2GB memory for concurrent processing (10 workers)
 - **Iterator errors**: The fix converts bucket iterators to lists to prevent exhaustion
 - **Deployment errors**: Use `--redeploy` flag to remove and recreate resources
+- **Missing configuration files**: Ensure both `projects.json` and `exclude_buckets.json` exist in the correct GCS bucket. The error message will include the bucket name if either file is missing.
