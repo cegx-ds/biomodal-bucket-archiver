@@ -55,26 +55,6 @@ def load_config_from_gcs():
         logger.error(f"Failed to load config from GCS bucket '{CONFIG_BUCKET}': {e}. Exiting.")
         raise
 
-def get_default_projects():
-    """Default project list as fallback, loaded from local config file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'config', 'projects.json')
-    try:
-        with open(config_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"Required local config file 'projects.json' not found or could not be loaded: {e}")
-        raise FileNotFoundError("Required local config file 'projects.json' not found or could not be loaded.")
-
-def get_default_exclude_buckets():
-    """Default exclude buckets list as fallback, loaded from local config file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'config', 'exclude_buckets.json')
-    try:
-        with open(config_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"Required local config file 'exclude_buckets.json' not found or could not be loaded: {e}")
-        raise FileNotFoundError("Required local config file 'exclude_buckets.json' not found or could not be loaded.")
-
 # Load configuration at startup
 projects, storage_class_exclude_buckets = load_config_from_gcs()
 
@@ -156,8 +136,8 @@ def change_bucket_storage_class(bucket: storage.Bucket) -> bool:
             return True
 
         # Compare the naive datetimes
-        if bucket_name == 'cegx-run2120' or latest_blob_update_create_date < now_aware - datetime.timedelta(days=DAYS_TO_WAIT):
-        # if latest_blob_update_create_date < now_aware - datetime.timedelta(days=DAYS_TO_WAIT):
+        # if bucket_name == 'cegx-run2120' or latest_blob_update_create_date < now_aware - datetime.timedelta(days=DAYS_TO_WAIT):
+        if latest_blob_update_create_date < now_aware - datetime.timedelta(days=DAYS_TO_WAIT):
             logger.info(f"Processing bucket '{bucket.name}' (last updated: {latest_blob_update_create_date})")
 
             # Disable Autoclass if enabled
