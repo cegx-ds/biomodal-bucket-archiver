@@ -1,0 +1,74 @@
+name: Deploy Bucket Archiver
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*.py"
+      - "requirements.txt"
+      - "config/*.json"
+      - "terraform/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint Python code
+        run: |
+          pip install flake8
+          flake8 *.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 *.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: prj-platform-tools-prod
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: terraform
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform
+
+      - name: Verify deployment
+        run: |
+          gcloud functions describe archive-storage \
+            --region=europe-west2 \
+            --project=prj-platform-tools-prod \
+            --format="value(serviceConfig.uri)"
