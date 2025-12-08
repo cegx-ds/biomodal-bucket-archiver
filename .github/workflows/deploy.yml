@@ -46,8 +46,8 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          workload_identity_provider: "projects/858243249399/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider"
+          service_account: "bucket-archiver-sa@prj-platform-tools-prod.iam.gserviceaccount.com"
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
