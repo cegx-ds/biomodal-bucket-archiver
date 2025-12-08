@@ -27,3 +27,13 @@ output "projects_with_access" {
   description = "List of projects where the service account has Storage Admin access"
   value       = local.projects_list
 }
+
+output "workload_identity_provider" {
+  description = "The Workload Identity Provider name for GitHub Actions"
+  value       = google_iam_workload_identity_pool_provider.github_provider.name
+}
+
+output "github_service_account" {
+  description = "Service account email for GitHub Actions impersonation"
+  value       = google_service_account.bucket_archiver.email
+}

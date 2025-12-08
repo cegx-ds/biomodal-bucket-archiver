@@ -16,6 +16,22 @@ provider "google" {
   region  = var.region
 }
 
+# Enable required APIs
+resource "google_project_service" "required_apis" {
+  for_each = toset([
+    "cloudfunctions.googleapis.com",
+    "cloudscheduler.googleapis.com",
+    "run.googleapis.com",
+    "storage.googleapis.com",
+    "iam.googleapis.com"
+  ])
+
+  project = var.project_id
+  service = each.value
+
+  disable_on_destroy = false
+}
+
 # Upload configuration files to the existing bucket
 resource "google_storage_bucket_object" "projects_config" {
   name   = "config/projects.json"
@@ -35,6 +51,43 @@ resource "google_service_account" "bucket_archiver" {
   display_name = "Bucket Archiver Service Account"
   description  = "Service account for automated bucket archiving across projects"
   project      = var.project_id
+}
+
+# Create Workload Identity Pool for GitHub Actions
+resource "google_iam_workload_identity_pool" "github_pool" {
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+  description               = "Workload Identity Pool for GitHub Actions"
+  project                   = var.project_id
+}
+
+# Create Workload Identity Provider for GitHub
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  display_name                       = "GitHub Provider"
+  description                        = "OIDC identity provider for GitHub Actions"
+  project                            = var.project_id
+
+  attribute_mapping = {
+    "google.subject"             = "assertion.sub"
+    "attribute.actor"            = "assertion.actor"
+    "attribute.repository"       = "assertion.repository"
+    "attribute.repository_owner" = "assertion.repository_owner"
+  }
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  attribute_condition = "assertion.repository_owner == '${var.github_org}'"
+}
+
+# Allow the GitHub Actions service account to impersonate the bucket archiver SA
+resource "google_service_account_iam_member" "github_sa_impersonation" {
+  service_account_id = google_service_account.bucket_archiver.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.github_org}/${var.github_repo}"
 }
 
 # Grant Storage Admin role to the service account in each project
@@ -102,7 +155,8 @@ resource "google_cloudfunctions2_function" "bucket_archiver" {
 
   depends_on = [
     google_project_iam_member.storage_admin,
-    google_storage_bucket_iam_member.config_bucket_reader
+    google_storage_bucket_iam_member.config_bucket_reader,
+    google_project_service.required_apis
   ]
 }
 
@@ -113,7 +167,14 @@ resource "google_storage_bucket_object" "function_source" {
   source = data.archive_file.function_source.output_path
 }
 
-# Allow the function to be invoked by the scheduler
+# Grant the service account Cloud Run Invoker role in the host project
+resource "google_project_iam_member" "run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.bucket_archiver.email}"
+}
+
+# Allow the function to be invoked by the scheduler (Cloud Functions permission)
 resource "google_cloudfunctions2_function_iam_member" "invoker" {
   project        = var.project_id
   location       = var.region
@@ -127,7 +188,7 @@ resource "google_cloud_scheduler_job" "weekly_archiver" {
   name        = var.scheduler_job_name
   region      = var.region
   project     = var.project_id
-  description = "Weekly bucket archiver - runs every Sunday at 2 AM UTC"
+  description = "Weekly bucket archiver - runs every Monday at 11 AM UTC"
   schedule    = var.schedule
   time_zone   = "UTC"
 
@@ -146,7 +207,9 @@ resource "google_cloud_scheduler_job" "weekly_archiver" {
 
   depends_on = [
     google_cloudfunctions2_function.bucket_archiver,
-    google_cloudfunctions2_function_iam_member.invoker
+    google_cloudfunctions2_function_iam_member.invoker,
+    google_project_iam_member.run_invoker,
+    google_project_service.required_apis
   ]
 }
 

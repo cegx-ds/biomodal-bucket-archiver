@@ -35,7 +35,7 @@ variable "scheduler_job_name" {
 }
 
 variable "schedule" {
-  description = "Cron schedule for the bucket archiver (default: every Sunday at 2 AM UTC)"
+  description = "Cron schedule for the bucket archiver (default: Monday at 11:30 AM UTC)"
   type        = string
   default     = "0 2 * * 0"
 }
@@ -44,4 +44,16 @@ variable "days_to_wait" {
   description = "Number of days to wait before archiving buckets"
   type        = number
   default     = 180
+}
+
+variable "github_org" {
+  description = "GitHub organization name for Workload Identity"
+  type        = string
+  default     = "cegx-ds"
+}
+
+variable "github_repo" {
+  description = "GitHub repository name for Workload Identity"
+  type        = string
+  default     = "biomodal-bucket-archiver"
 }

@@ -15,11 +15,9 @@ import datetime
 import pytz
 
 # Configure logging for Cloud Functions
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+# The basicConfig is removed as it interferes with the default Cloud Functions logger.
+# Standard logging and print statements are automatically captured by Cloud Logging.
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Number of days to wait before archiving a bucket
