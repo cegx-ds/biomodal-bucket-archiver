@@ -185,12 +185,13 @@ resource "google_cloudfunctions2_function_iam_member" "invoker" {
 
 # Create the Cloud Scheduler job
 resource "google_cloud_scheduler_job" "weekly_archiver" {
-  name        = var.scheduler_job_name
-  region      = var.region
-  project     = var.project_id
-  description = "Bucket archiver job (see schedule variable for timing)"
-  schedule    = var.schedule
-  time_zone   = "UTC"
+  name             = var.scheduler_job_name
+  region           = var.region
+  project          = var.project_id
+  description      = "Bucket archiver job (see schedule variable for timing)"
+  schedule         = var.schedule
+  time_zone        = "UTC"
+  attempt_deadline = "1800s"
 
   http_target {
     http_method = "POST"

@@ -35,9 +35,9 @@ variable "scheduler_job_name" {
 }
 
 variable "schedule" {
-  description = "Cron schedule for the bucket archiver (default: Monday at 11:30 AM UTC)"
+  description = "Cron schedule for the bucket archiver"
   type        = string
-  default     = "0 2 * * 0"
+  default     = "0 16 * * 2"
 }
 
 variable "days_to_wait" {
