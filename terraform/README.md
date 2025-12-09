@@ -13,6 +13,7 @@ This Terraform module deploys the bucket archiver infrastructure to Google Cloud
 ## Usage
 
 1. Copy the example terraform.tfvars file:
+
    ```bash
    cp terraform.tfvars.example terraform.tfvars
    ```
@@ -20,6 +21,7 @@ This Terraform module deploys the bucket archiver infrastructure to Google Cloud
 2. Modify `terraform.tfvars` with your specific values if needed.
 
 3. Initialize and apply:
+
    ```bash
    terraform init
    terraform plan
@@ -29,6 +31,7 @@ This Terraform module deploys the bucket archiver infrastructure to Google Cloud
 ## Service Account Permissions
 
 The created service account (`bucket-archiver-sa`) will have:
+
 - `roles/storage.admin` in all projects listed in `../config/projects.json`
 - `roles/storage.objectViewer` on the configuration bucket
 - `roles/cloudfunctions.invoker` on the Cloud Function
@@ -36,6 +39,7 @@ The created service account (`bucket-archiver-sa`) will have:
 ## Configuration Files
 
 The module automatically uploads:
+
 - `../config/projects.json` - List of projects to process
 - `../config/exclude_buckets.json` - Buckets to exclude from archiving
 
@@ -63,7 +67,8 @@ The module automatically uploads:
 
 ## Migration from Shell Scripts
 
-This Terraform module replaces:
+This Terraform module replaces the old shell scripts (now deleted):
+
 - `deploy.sh` - Creates Cloud Function and uploads configs
 - `create_scheduler.sh` - Creates Cloud Scheduler job
 
