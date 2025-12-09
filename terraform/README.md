@@ -53,7 +53,7 @@ The module automatically uploads:
 | function_name | Cloud Function name | `archive-storage` |
 | service_account_name | Service account name | `bucket-archiver-sa` |
 | scheduler_job_name | Scheduler job name | `weekly-bucket-archiver` |
-| schedule | Cron schedule | `0 2 * * 0` (Sunday 2 AM UTC) |
+| schedule | Cron schedule | `0 2 * * 0` (Default: Sunday 2 AM UTC) |
 | days_to_wait | Days before archiving | `180` |
 
 ## Outputs
