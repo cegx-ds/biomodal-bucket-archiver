@@ -188,7 +188,7 @@ resource "google_cloud_scheduler_job" "weekly_archiver" {
   name        = var.scheduler_job_name
   region      = var.region
   project     = var.project_id
-  description = "Weekly bucket archiver - runs every Monday at 11 AM UTC"
+  description = "Bucket archiver job (see schedule variable for timing)"
   schedule    = var.schedule
   time_zone   = "UTC"
 
