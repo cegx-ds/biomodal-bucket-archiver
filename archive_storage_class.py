@@ -15,12 +15,12 @@ import datetime
 import pytz
 
 # Configure logging for Cloud Functions
+# Cloud Functions automatically integrates with Cloud Logging when using the root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]
+    format="%(levelname)s: %(message)s"
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()  # Use root logger for Cloud Functions
 
 # Number of days to wait before archiving a bucket
 DAYS_TO_WAIT = int(os.environ.get('DAYS_TO_WAIT', '180'))
