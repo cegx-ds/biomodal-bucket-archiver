@@ -3,14 +3,14 @@ output "service_account_email" {
   value       = google_service_account.bucket_archiver.email
 }
 
-output "function_name" {
-  description = "Name of the deployed Cloud Function"
-  value       = google_cloudfunctions2_function.bucket_archiver.name
+output "service_name" {
+  description = "Name of the deployed Cloud Run service"
+  value       = google_cloud_run_v2_service.bucket_archiver.name
 }
 
-output "function_url" {
-  description = "URL of the deployed Cloud Function"
-  value       = google_cloudfunctions2_function.bucket_archiver.service_config[0].uri
+output "service_url" {
+  description = "URL of the deployed Cloud Run service"
+  value       = google_cloud_run_v2_service.bucket_archiver.uri
 }
 
 output "config_bucket_name" {
@@ -21,6 +21,11 @@ output "config_bucket_name" {
 output "scheduler_job_name" {
   description = "Name of the Cloud Scheduler job"
   value       = google_cloud_scheduler_job.weekly_archiver.name
+}
+
+output "artifact_registry_repository" {
+  description = "Artifact Registry repository for Docker images"
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.bucket_archiver.repository_id}"
 }
 
 # output "projects_with_access" {

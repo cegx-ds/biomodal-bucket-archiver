@@ -72,7 +72,7 @@ resource "google_cloud_scheduler_job" "weekly_archiver" {
 
   http_target {
     http_method = "POST"
-    uri         = google_cloudfunctions2_function.bucket_archiver.service_config[0].uri
+    uri         = google_cloud_run_v2_service.bucket_archiver.uri
     headers = {
       "Content-Type" = "application/json"
     }
@@ -84,28 +84,7 @@ resource "google_cloud_scheduler_job" "weekly_archiver" {
   }
 }
 
-# Cloud Function V2
-resource "google_storage_bucket_object" "archive" {
-  name   = "index.zip"
-  bucket = var.config_bucket_name
-  source = data.archive_file.function_source.output_path
-}
-
-data "archive_file" "function_source" {
-  type        = "zip"
-  output_path = "/tmp/function-source.zip"
-  source_dir  = "../"
-  excludes = [
-    "terraform/",
-    ".git/",
-    ".gitignore",
-    "README.md",
-    "*.sh",
-    "__pycache__/",
-    "*.pyc"
-  ]
-}
-
+# Upload configuration files
 resource "google_storage_bucket_object" "projects_config" {
   name   = "config/projects.json"
   bucket = var.config_bucket_name
@@ -119,30 +98,49 @@ resource "google_storage_bucket_object" "exclude_buckets_config" {
   source = "../config/exclude_buckets.json"
 }
 
-resource "google_cloudfunctions2_function" "bucket_archiver" {
-  name        = var.function_name
-  location    = var.region
-  description = "Cloud Function to archive GCS buckets"
+# Artifact Registry repository for Docker images
+resource "google_artifact_registry_repository" "bucket_archiver" {
+  location      = var.region
+  repository_id = "bucket-archiver"
+  description   = "Docker repository for bucket archiver"
+  format        = "DOCKER"
+  project       = var.project_id
+}
 
-  build_config {
-    runtime     = "python311"
-    entry_point = "archive_storage_handler"
-    source {
-      storage_source {
-        bucket = var.config_bucket_name
-        object = google_storage_bucket_object.archive.name
+# Cloud Run service
+resource "google_cloud_run_v2_service" "bucket_archiver" {
+  name     = var.function_name
+  location = var.region
+  project  = var.project_id
+
+  template {
+    service_account = google_service_account.bucket_archiver.email
+
+    timeout = "1800s"
+
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.bucket_archiver.repository_id}/bucket-archiver:latest"
+
+      resources {
+        limits = {
+          memory = "1Gi"
+          cpu    = "1"
+        }
+      }
+
+      env {
+        name  = "CONFIG_BUCKET"
+        value = var.config_bucket_name
+      }
+
+      env {
+        name  = "DAYS_TO_WAIT"
+        value = tostring(var.days_to_wait)
       }
     }
-  }
 
-  service_config {
-    max_instance_count    = 1
-    available_memory      = "1024M"
-    timeout_seconds       = 1800
-    service_account_email = google_service_account.bucket_archiver.email
-    environment_variables = {
-      CONFIG_BUCKET = var.config_bucket_name
-      DAYS_TO_WAIT  = var.days_to_wait
+    scaling {
+      max_instance_count = 1
     }
   }
 
@@ -153,17 +151,24 @@ resource "google_cloudfunctions2_function" "bucket_archiver" {
     google_project_iam_member.run_viewer,
     google_project_iam_member.run_invoker,
     google_project_iam_member.cf_service_agent,
-    google_project_iam_member.logging_writer
+    google_project_iam_member.logging_writer,
+    google_artifact_registry_repository.bucket_archiver
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
 }
 
-# IAM entry for service account to invoke the function
-resource "google_cloudfunctions2_function_iam_member" "invoker" {
-  project        = var.project_id
-  location       = google_cloudfunctions2_function.bucket_archiver.location
-  cloud_function = google_cloudfunctions2_function.bucket_archiver.name
+# IAM entry for service account to invoke Cloud Run
+resource "google_cloud_run_v2_service_iam_member" "invoker" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.bucket_archiver.location
+  name     = google_cloud_run_v2_service.bucket_archiver.name
 
-  role   = "roles/cloudfunctions.invoker"
+  role   = "roles/run.invoker"
   member = "serviceAccount:${google_service_account.bucket_archiver.email}"
 }
 
