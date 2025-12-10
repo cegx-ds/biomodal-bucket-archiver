@@ -25,7 +25,19 @@ variable "function_name" {
 variable "service_account_name" {
   description = "Name of the dedicated service account for bucket archiving"
   type        = string
-  default     = "bucket-archiver-sa"
+  default     = "sa-dashboarding-internal-dev"
+}
+
+variable "service_account_email" {
+  description = "Email of the dedicated service account for bucket archiving"
+  type        = string
+  default     = "sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com"
+}
+
+variable "service_account_project" {
+  description = "Project where the service account exists"
+  type        = string
+  default     = "prj-biomodal-project-factory"
 }
 
 variable "scheduler_job_name" {
@@ -37,7 +49,7 @@ variable "scheduler_job_name" {
 variable "schedule" {
   description = "Cron schedule for the bucket archiver"
   type        = string
-  default     = "0 16 * * 2"
+  default     = "0 14 * * 3"
 }
 
 variable "days_to_wait" {
