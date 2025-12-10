@@ -4,6 +4,41 @@ locals {
   projects_list = jsondecode(local.projects_json)
 }
 
+# Create service account first, before any other resources
+resource "google_service_account" "bucket_archiver" {
+  account_id   = "sa-bucket-archiver"
+  display_name = "Bucket Archiver Service Account"
+  description  = "Service account for automated bucket archiving across projects"
+  project      = var.project_id
+}
+
+# Grant Storage Admin access to the service account in each project
+resource "google_project_iam_member" "storage_admin" {
+  for_each = toset(local.projects_list)
+  project  = each.value
+  role     = "roles/storage.admin"
+  member   = "serviceAccount:${google_service_account.bucket_archiver.email}"
+}
+
+# Grant Cloud Run Viewer access to the service account in each project
+resource "google_project_iam_member" "run_viewer" {
+  for_each = toset(local.projects_list)
+  project  = each.value
+  role     = "roles/run.viewer"
+  member   = "serviceAccount:${google_service_account.bucket_archiver.email}"
+}
+
+# Grant Cloud Build service account access to read from config bucket for deployment
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_storage_bucket_iam_member" "cloudbuild_bucket_access" {
+  bucket = var.config_bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
 
 # Permissions for bucket archiver service account in prj-platform-tools-prod
 resource "google_project_iam_member" "run_invoker" {
@@ -110,6 +145,16 @@ resource "google_cloudfunctions2_function" "bucket_archiver" {
       DAYS_TO_WAIT  = var.days_to_wait
     }
   }
+
+  # Ensure service account and all IAM bindings are created first
+  depends_on = [
+    google_service_account.bucket_archiver,
+    google_project_iam_member.storage_admin,
+    google_project_iam_member.run_viewer,
+    google_project_iam_member.run_invoker,
+    google_project_iam_member.cf_service_agent,
+    google_project_iam_member.logging_writer
+  ]
 }
 
 # IAM entry for service account to invoke the function
@@ -120,30 +165,6 @@ resource "google_cloudfunctions2_function_iam_member" "invoker" {
 
   role   = "roles/cloudfunctions.invoker"
   member = "serviceAccount:${google_service_account.bucket_archiver.email}"
-}
-
-
-resource "google_service_account" "bucket_archiver" {
-  account_id   = "sa-bucket-archiver"
-  display_name = "Bucket Archiver Service Account"
-  description  = "Service account for automated bucket archiving across projects"
-  project      = var.project_id
-}
-
-# Grant Storage Admin access to the service account in each project
-resource "google_project_iam_member" "storage_admin" {
-  for_each = toset(local.projects_list)
-  project  = each.value
-  role     = "roles/storage.admin"
-  member   = "serviceAccount:${google_service_account.bucket_archiver.email}"
-}
-
-# Grant Cloud Run Viewer access to the service account in each project
-resource "google_project_iam_member" "run_viewer" {
-  for_each = toset(local.projects_list)
-  project  = each.value
-  role     = "roles/run.viewer"
-  member   = "serviceAccount:${google_service_account.bucket_archiver.email}"
 }
 
 
