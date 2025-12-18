@@ -5,13 +5,14 @@ on:
     branches: [main]
     paths:
       - "*.py"
+      - "Dockerfile"
       - "requirements.txt"
       - "config/*.json"
       - "terraform/**"
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,22 +38,35 @@ jobs:
           flake8 *.py --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 *.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
       - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: "projects/858243249399/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider"
-          service_account: "bucket-archiver-sa@prj-platform-tools-prod.iam.gserviceaccount.com"
+          workload_identity_provider: "projects/858243249399/locations/global/workloadIdentityPools/github/providers/github-provider"
+          service_account: "sa-bucket-archiver@prj-platform-tools-prod.iam.gserviceaccount.com"
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: prj-platform-tools-prod
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_PATH="europe-west2-docker.pkg.dev/prj-platform-tools-prod/bucket-archiver/bucket-archiver:latest"
+          IMAGE_SHA="europe-west2-docker.pkg.dev/prj-platform-tools-prod/bucket-archiver/bucket-archiver:${{ github.sha }}"
+
+          docker build --platform linux/amd64 -t "${IMAGE_PATH}" -t "${IMAGE_SHA}" .
+          docker push "${IMAGE_PATH}"
+          docker push "${IMAGE_SHA}"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
 
       - name: Terraform Init
         run: terraform init
@@ -68,7 +82,7 @@ jobs:
 
       - name: Verify deployment
         run: |
-          gcloud functions describe archive-storage \
+          gcloud run services describe archive-storage \
             --region=europe-west2 \
             --project=prj-platform-tools-prod \
-            --format="value(serviceConfig.uri)"
+            --format="value(status.url)"

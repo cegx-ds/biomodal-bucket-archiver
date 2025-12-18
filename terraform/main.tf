@@ -172,39 +172,3 @@ resource "google_cloud_run_v2_service_iam_member" "invoker" {
   member = "serviceAccount:${google_service_account.bucket_archiver.email}"
 }
 
-
-####
-
-# Create Workload Identity Pool for GitHub Actions
-# resource "google_iam_workload_identity_pool" "github_pool" {
-#   workload_identity_pool_id = "github-actions-pool"
-#   display_name              = "GitHub Actions Pool"
-#   description               = "Workload Identity Pool for GitHub Actions"
-#   project                   = var.project_id
-# }
-
-# Create Workload Identity Provider for GitHub
-# resource "google_iam_workload_identity_pool_provider" "github_provider" {
-#   workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
-#   workload_identity_pool_provider_id = "github-provider"
-#   display_name                       = "GitHub Provider"
-#   description                        = "OIDC identity provider for GitHub Actions"
-#   project                            = var.project_id
-
-#   attribute_mapping = {
-#     "google.subject"             = "assertion.sub"
-#     "attribute.actor"            = "assertion.actor"
-#     "attribute.repository"       = "assertion.repository"
-#     "attribute.repository_owner" = "assertion.repository_owner"
-#   }
-
-#   oidc {
-#     issuer_uri = "https://token.actions.githubusercontent.com"
-#   }
-
-#   attribute_condition = "assertion.repository_owner == '${var.github_org}'"
-# }
-
-####
-
-
