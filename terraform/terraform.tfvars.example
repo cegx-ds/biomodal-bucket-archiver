@@ -1,0 +1,13 @@
+# Example terraform.tfvars file
+# Copy this to terraform.tfvars and modify as needed
+
+project_id          = "prj-platform-tools-prod"
+region              = "europe-west2"
+config_bucket_name  = "biomodal-bucket-archiver-configs"
+function_name       = "archive-storage"
+service_account_name = "bucket-archiver-sa"
+scheduler_job_name  = "weekly-bucket-archiver"
+schedule            = "30 11 * * 1"  # Every Monday at 11:30 AM UTC
+days_to_wait        = 180
+github_org          = "cegx-ds"
+github_repo         = "biomodal-bucket-archiver"

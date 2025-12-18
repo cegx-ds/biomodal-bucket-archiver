@@ -9,18 +9,19 @@ import logging
 import functions_framework
 import os
 import json
+import threading
 from google.cloud import storage
 from google.cloud.storage import constants
 import datetime
 import pytz
 
 # Configure logging for Cloud Functions
+# Cloud Functions automatically integrates with Cloud Logging when using the root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]
+    format="%(levelname)s: %(message)s"
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()  # Use root logger for Cloud Functions
 
 # Number of days to wait before archiving a bucket
 DAYS_TO_WAIT = int(os.environ.get('DAYS_TO_WAIT', '180'))
@@ -218,13 +219,12 @@ def process_project(project_id: str) -> dict:
     return results
 
 
-@functions_framework.http
-def archive_storage_handler(request):
+def run_archival_process(project_filter=None):
     """
-    Cloud Function entry point for archiving storage.
+    Execute the bucket archival process.
 
     Args:
-        request: HTTP request object
+        project_filter: Optional project ID to filter processing
 
     Returns:
         dict: Processing results
@@ -232,12 +232,8 @@ def archive_storage_handler(request):
     start_time = datetime.datetime.now()
     logger.info("Starting storage archival process")
 
-    # Parse request parameters
-    request_json = request.get_json(silent=True)
-    project_filter = None
-
-    if request_json and 'project' in request_json:
-        project_filter = request_json['project']
+    # Determine target projects
+    if project_filter:
         target_projects = [project_filter] if project_filter in projects else []
     else:
         target_projects = projects
@@ -278,6 +274,37 @@ def archive_storage_handler(request):
 
     logger.info(f"Storage archival process completed. Status: {total_results['status']}")
     return total_results
+
+
+@functions_framework.http
+def archive_storage_handler(request):
+    """
+    Cloud Function entry point - returns immediately, processes asynchronously.
+
+    Args:
+        request: HTTP request object
+
+    Returns:
+        tuple: (dict, int) Response message and HTTP status code
+    """
+    # Parse request parameters
+    request_json = request.get_json(silent=True)
+    project_filter = None
+
+    if request_json and 'project' in request_json:
+        project_filter = request_json['project']
+
+    # Start archiving in background thread
+    thread = threading.Thread(target=run_archival_process, args=(project_filter,))
+    thread.daemon = True
+    thread.start()
+
+    # Return immediately
+    return {
+        "status": "accepted",
+        "message": "Bucket archival process started in the background. Check Cloud Logging for progress and results.",
+        "project_filter": project_filter
+    }, 202
 
 
 def find_all_buckets() -> None:

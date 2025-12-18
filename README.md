@@ -17,18 +17,14 @@ This Cloud Function automatically archives Google Cloud Storage buckets older th
 
 ## Prerequisites
 
-1. Google Cloud SDK installed and configured
-2. Your user account needs these IAM permissions:
-   - Cloud Functions Admin (to deploy functions)
-   - Cloud Scheduler Admin (to create scheduler jobs)
-   - Service Account User role on the service account `sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com`
-3. Service account `sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com` needs:
-   - Storage Admin on all target projects
-4. Access to `prj-platform-tools-prod` project
-5. Required Google Cloud APIs (will be prompted to enable during first deployment):
+1. Terraform >= 1.0 installed
+2. Google Cloud SDK installed and configured
+3. Access to `prj-platform-tools-prod` project
+4. Required Google Cloud APIs:
    - Cloud Functions API (`cloudfunctions.googleapis.com`)
    - Cloud Build API (`cloudbuild.googleapis.com`)
    - Cloud Scheduler API (`cloudscheduler.googleapis.com`)
+   - Cloud Storage API (`storage.googleapis.com`)
 
 ## Configuration
 
@@ -58,7 +54,7 @@ The Cloud Function loads configuration from the `biomodal-bucket-archiver-config
 - **Projects list**: `gs://biomodal-bucket-archiver-configs/config/projects.json`
 - **Exclusions list**: `gs://biomodal-bucket-archiver-configs/config/exclude_buckets.json`
 
-The deployment script automatically:
+The Terraform deployment automatically:
 
 1. Creates the bucket if it doesn't exist
 2. Uploads the local `config/*.json` files to the bucket
@@ -73,59 +69,40 @@ To update configuration without redeploying the function, modify the files in GC
 
 ## Deployment
 
+The infrastructure is deployed using Terraform. See the [terraform/README.md](terraform/README.md) for detailed instructions.
+
 ### Initial Deployment
 
-**Note:** On first deployment, you will be prompted to enable required APIs if they're not already enabled:
-
-- Cloud Functions API (`cloudfunctions.googleapis.com`)
-- Cloud Build API (`cloudbuild.googleapis.com`)
-
-Answer `y` when prompted. This is a one-time setup and may take a few minutes.
-
-**Important:** If you see a warning about the Cloud Build service account missing the `roles/cloudbuild.builds.builder` role, run the following command (replace the project ID and service account number if different):
-
-```bash
-gcloud projects add-iam-policy-binding prj-platform-tools-prod \
-  --member=serviceAccount:858243249399-compute@developer.gserviceaccount.com \
-  --role=roles/cloudbuild.builds.builder
-```
-
-For more information, see: [Cloud Functions Troubleshooting](https://cloud.google.com/functions/docs/troubleshooting#build-service-account)
-
-**Important:** If you see an error about missing `iam.serviceaccounts.actAs` permission, you need the Service Account User role on the service account. Have a project admin run:
-
-```bash
-gcloud iam service-accounts add-iam-policy-binding \
-  sa-dashboarding-internal-dev@prj-biomodal-project-factory.iam.gserviceaccount.com \
-  --member=user:YOUR_EMAIL@example.com \
-  --role=roles/iam.serviceAccountUser \
-  --project=prj-biomodal-project-factory
-```
-
-Replace `YOUR_EMAIL@example.com` with your Google Cloud account email. Note: The `--project` flag is required because the service account exists in the `prj-biomodal-project-factory` project.
-
-1. **Deploy the function and upload configuration:**
+1. **Navigate to the terraform directory:**
 
    ```bash
-   ./deploy.sh
+   cd terraform
    ```
 
-2. **Create the weekly scheduler job:**
+2. **Copy and configure variables:**
 
    ```bash
-   ./create_scheduler.sh
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit terraform.tfvars if needed
    ```
 
-### Redeployment
+3. **Initialize and deploy:**
 
-To remove and redeploy (useful for updates):
+   ```bash
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+
+### Update Deployment
+
+To update the infrastructure or function code:
 
 ```bash
-./deploy.sh --redeploy        # Remove and redeploy Cloud Function
-./create_scheduler.sh --redeploy  # Remove and recreate scheduler job
+cd terraform
+terraform plan
+terraform apply
 ```
-
-Both scripts support `-r` as a shorthand for `--redeploy`.
 
 ## Usage
 
@@ -199,16 +176,21 @@ Update configuration without redeploying:
 
 ```text
 bucket_archiver/
-├── archive_storage_class.py   # Main Cloud Function implementation
-├── main.py                    # Cloud Function entry point
-├── requirements.txt           # Python dependencies
-├── deploy.sh                  # Deployment script (supports --redeploy)
-├── create_scheduler.sh        # Scheduler creation script (supports --redeploy)
-├── update_config.sh           # Configuration update script
-├── README.md                  # This file
-└── config/
-    ├── projects.json          # Project list to scan
-    └── exclude_buckets.json   # Exclusion list
+├── archive_storage_class.py      # Main Cloud Function implementation
+├── main.py                       # Cloud Function entry point
+├── requirements.txt              # Python dependencies
+├── update_config.sh              # Configuration update script
+├── README.md                     # This file
+├── config/
+│   ├── projects.json             # Project list to scan
+│   └── exclude_buckets.json      # Exclusion list
+└── terraform/
+    ├── main.tf                   # Terraform main configuration
+    ├── variables.tf              # Terraform variables
+    ├── outputs.tf                # Terraform outputs
+    ├── providers.tf              # Terraform providers
+    ├── terraform.tfvars.example  # Example variables file
+    └── README.md                 # Terraform documentation
 ```
 
 ## How It Works
